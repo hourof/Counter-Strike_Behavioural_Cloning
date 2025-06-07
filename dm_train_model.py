@@ -1,3 +1,4 @@
+#训练神经网络模型。从头开始或从以前的检查点开始
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0" # single GPU
 # os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3" # use multiple GPUs

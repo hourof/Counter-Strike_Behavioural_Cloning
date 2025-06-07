@@ -1,3 +1,4 @@
+#在 CSGO 中运行经过训练的模型。使用 收集元数据（例如 score）的选项。IS_GSI=Truetools_dataset_inspect.py：用于打开不同数据集和随附元数据文件的最小代码
 import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # to force CPU
 import time
@@ -42,72 +43,76 @@ from screen_input import grab_window
 from config import *
 
 # this script applies a trained NN in a deathmatch environment
-
-# select the game window
+#翻译:此脚本在一个死亡竞赛环境中应用一个训练好的神经网络。
+# select the game window  选择游戏窗口
 print('selecting the game window...')
-hwin_orig = win32gui.GetForegroundWindow() # remember original window
-# hwin_csgo = win32gui.FindWindow(None,'Counter-Strike: Global Offensive')
+hwin_orig = win32gui.GetForegroundWindow() # remember original window  记住原始窗口
+#查找窗口
 hwin_csgo = win32gui.FindWindow(None,'Counter-Strike: Global Offensive - Direct3d 9') # as of Feb 2022
+#该函数将创建指定窗口的线程设置到前台，并且激活该窗口。键盘输入转向该窗口，并为用户改各种可视的记号。系统给创建前台窗口的线程分配的权限稍高于其他线程
 win32gui.SetForegroundWindow(hwin_csgo)
 time.sleep(1)
 
-# get info about resolution and monitors
+# 获取有关分辨率和显示器的信息
 sct = mss.mss()
 if len(sct.monitors) == 3:
     Wd, Hd = sct.monitors[2]["width"], sct.monitors[2]["height"]
 else:
     Wd, Hd = sct.monitors[1]["width"], sct.monitors[1]["height"]
-
+#捕获鼠标位置
 print('capturing mouse position...')
 time.sleep(0.2)
 mouse_x_mid, mouse_y_mid = mouse_check()
 
 mins_per_iter = 10
 
-# load model from
-model_names = ['ak47_sub_55k_drop_d4_dmexpert_28'] # our best performing dm agent, pretrained and finetuned on expert dm data
-# model_names = ['ak47_sub_55k_drop_d4'] # pretrained agent
-# model_names = ['ak47_sub_55k_drop_d4_aimexpertv2_60'] # pretrained and finetuned on expert aim mode
+# 加载模型
+model_names = ['ak47_sub_55k_drop_d4_dmexpert_28'] # 我们表现最佳的深度学习模型，该模型是基于专家提供的深度学习数据进行预训练和微调的
+# model_names = ['ak47_sub_55k_drop_d4'] # pretrained agent  预训练代理
+# model_names = ['ak47_sub_55k_drop_d4_aimexpertv2_60'] # pretrained and finetuned on expert aim mode  经过专家模式下的预训练和微调
 # model_names = ['July_remoterun7_g9_4k_n32_recipe_ton96__e14'] # pretrained on full dataset
 model_save_dir = os.path.join(os.getcwd(),'model')
-model_save_dir_overflow = 'F:/2021/01_remotemodels_overflow' # could also be in here
+model_save_dir_overflow = 'F:/2021/01_remotemodels_overflow' # could also be in here  也可能在这里
 
-# folder to save pickle about rewards etc
+# 用于保存有关奖励等的pickle文件的文件夹
 pickle_reward_folder = ''
 pickle_reward_name = 'rewards_.p'
 
 pickle_reward_path = os.path.join(pickle_reward_folder, pickle_reward_name)
 pickle.dump([], open(pickle_reward_path, 'wb'))
+#保存的腌制奖励
 print('saved pickled rewards',pickle_reward_path)
 
-# which actions do you want to allow the agent to control?
-IS_CLICKS=1 # allows only to play with left click
+#您希望允许代理执行哪些操作？
+IS_CLICKS=1 # 仅允许通过左键操作来进行游戏。
 IS_RCLICK=0
 IS_MOUSEMOVE=1
-IS_WASD=1 # apply wsad only
+IS_WASD=1 # apply wsad only 仅应用 wsad
 IS_JUMP=1
 IS_RELOAD=1
-IS_KEYS=0 # remainder of keys -- 1, 2, 3, shift, ctrl
+IS_KEYS=0 # remainder of keys -- 1, 2, 3, shift, ctrl 其余按键——1、2、3、退格键、Ctrl 键
 
-# should the agent choose best guess action or according to prob
-IS_SPLIT_MOUSE=True # whether to do one mouse update per loop, or divide by 2
-IS_PROBABILISTIC_ACTIONS = True # TODO, only set for left click atm
-ENT_REG = 0.05 # entropy regularisation
-N_FILES_RESTART = 500 # how many files to save (of 1000 frames) before map restart
-SAVE_TRAIN_DATA=False # whether to actually save the files and do training
-IS_DEMO=False # show agent vision with overlay
+# 如果代理选择最佳猜测行动还是根据概率来决定呢？
+IS_SPLIT_MOUSE=True # 是按每轮一次的方式更新鼠标位置，还是将其除以 2 ？
+IS_PROBABILISTIC_ACTIONS = True # TODO, 目前仅支持左键点击操作。
+ENT_REG = 0.05 # entropy regularisation  熵正则化
+N_FILES_RESTART = 500 # how many files to save (of 1000 frames) before map restart  在地图重新启动前需要保存多少个文件？
+SAVE_TRAIN_DATA=False # whether to actually save the files and do training      是否要真正保存这些文件并进行训练
+IS_DEMO=False # show agent vision with overlay  通过叠加效果展现代理的视野
+#是否使用 gsi 来提取杀毒、死亡和辅助信息(必须在你的计算机进行设置)
 IS_GSI=False # whether to extract kill, death and aux info using GSI (must be set up on your machine)
 
 
 if IS_GSI:
     from meta_utils import *
 # else:
-#     from meta_utils_noserver import *
-
+#     from meta_utils_noserver import *whether
+#restartgame 重新开始游戏
 def mp_restartgame():
+    # is_esc 使能够发送两个“e”字符
     # is_esc lets send double e
     for c in [cons_char,m_char,p_char,under_char,r_char,e_char,s_char,t_char,a_char,r_char,t_char,g_char,a_char,m_char,e_char,space_char,one_char,ret_char,cons_char,esc_char,esc_char]:
-        # type mp_restartgame 1
+        # type mp_restartgame 1   重新开始游戏类型
         if c == under_char:
             HoldKey(shift_char)
             HoldKey(under_char)
@@ -119,7 +124,7 @@ def mp_restartgame():
         time.sleep(0.1)
 
     time.sleep(3)
-    # should try to buy ak47
+    # should try to buy ak47  应该尝试购买 AK47 步枪。
     for c in [cons_char,g_char,i_char,v_char,e_char, space_char, 
              w_char, e_char, a_char, p_char, o_char, n_char, under_char, a_char, k_char, four_char, seven_char,   ret_char,cons_char,esc_char,esc_char]:
         # type give weapon_ak47
@@ -129,10 +134,10 @@ def mp_restartgame():
             ReleaseKey(under_char)
             ReleaseKey(shift_char)
         else:
-            HoldKey(c)
+            HoldKey(c)small
             ReleaseKey(c)
         time.sleep(0.1)
-
+    clicked
     return
 
 def pause_game():
@@ -148,18 +153,20 @@ n_iters_total = len(model_names)
 for training_iter in range(n_iters_total):
 
     model_name = model_names[training_iter]
-
+    # training_iter  训练迭代次数
+    # model_name      模型名称
+    # preparing buffer  准备缓存区
     print('\n\n training_iter',training_iter,', model_name ',model_name,'preparing buffer...')
-    # need a small buffer of images and aux
+    # need a small buffer of images and aux  需要一些小量的图片和辅助材料。
     recent_imgs = []
     recent_actions = []
-    recent_mouses = [] # store continuous values
+    recent_mouses = [] # store continuous values    存储连续的数值
     recent_health = []
     recent_ammo = []
     recent_team = []
     recent_val = []
 
-    # do this every time incase clicked away
+    # do this every time incase clicked away    每次都要这样做，以防用户点击离开页面。
     win32gui.SetForegroundWindow(hwin_csgo)
     time.sleep(0.5)
     mp_restartgame()
@@ -176,14 +183,14 @@ for training_iter in range(n_iters_total):
         recent_imgs.append(x_img)
 
         
-        # actions
+        # actions  动作
         dummy_action=np.zeros(int(aux_input_length))
         recent_mouses.append([0.,0.])
-        dummy_action[0] = 1 # encourage to start moving
+        dummy_action[0] = 1 # encourage to start moving 鼓励开始行动起来
         recent_actions.append(dummy_action)
         recent_val.append(0)
 
-        # aux extra info
+        # aux extra info  附加信息
         if IS_GSI:
             server.handle_request()
         recent_health.append(100)
@@ -193,17 +200,19 @@ for training_iter in range(n_iters_total):
         while time.time() < loop_start_time + 1/loop_fps:
             time.sleep(0.01)
 
-
+    # training_iter：训练迭代次数     starting loop：  开始循环
     print('\n\n training_iter',training_iter,'starting loop...')
 
-    # load stateful version of current model
+    # load stateful version of current model    加载当前模型的完整版本
     try:
+        #_stateful:状态性
         model_run = tp_load_model(model_save_dir, model_name+'_stateful')
     except:
+        #模型不在主文件夹中，正在尝试从扩展目录中查找
         print('\n\nmodel not in main folder, trying overflow\n\n')
         model_run = tp_load_model(model_save_dir_overflow, model_name+'_stateful')
 
-    n_loops = 0 # how many times loop through 
+    n_loops = 0 # how many times loop through   循环多少次
     keys_pressed_apply=[]
     keys_pressed=[]
     Lclicks=0
